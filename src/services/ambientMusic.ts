@@ -141,19 +141,36 @@ export const playAmbientMusic = async (
     ambientAudio.src = audioUrl;
     ambientAudio.loop = true;
     ambientAudio.volume = Math.max(0, Math.min(1, volume));
+    ambientAudio.preload = 'auto';
     currentAmbientVolume = volume;
 
-    // Error handling
+    let hasStartedPlaying = false;
+
+    // Error handling - only report error if we haven't started playing
     ambientAudio.onerror = (e) => {
-      console.error('Audio playback error:', e);
-      isAmbientPlaying = false;
-      onStatusUpdate?.('error');
+      if (!hasStartedPlaying) {
+        console.error('Audio playback error:', e);
+        isAmbientPlaying = false;
+        onStatusUpdate?.('error');
+      }
+    };
+
+    // Handle when audio ends (for looping manually if needed)
+    ambientAudio.onended = () => {
+      if (ambientAudio && isAmbientPlaying) {
+        // Manually restart for looping
+        ambientAudio.currentTime = 0;
+        ambientAudio.play().catch(() => {});
+      }
     };
 
     ambientAudio.oncanplaythrough = async () => {
+      if (hasStartedPlaying) return; // Prevent double-firing
+
       try {
         if (ambientAudio) {
           await ambientAudio.play();
+          hasStartedPlaying = true;
           isAmbientPlaying = true;
           onStatusUpdate?.('playing');
           console.log('Ambient music started:', soundType);
