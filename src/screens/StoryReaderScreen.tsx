@@ -86,7 +86,11 @@ const StoryReaderScreen: React.FC = () => {
 
   // Generate narration if not already available
   const handleGenerateNarration = async () => {
+    console.log('[StoryReader] handleGenerateNarration called');
+    console.log('[StoryReader] ElevenLabs key present:', !!getElevenLabsKey());
+
     if (!getElevenLabsKey()) {
+      console.log('[StoryReader] No API key - showing error');
       setNarrationError('Please configure your ElevenLabs API key in Settings to enable voice narration.');
       return;
     }
@@ -95,16 +99,21 @@ const StoryReaderScreen: React.FC = () => {
     setNarrationError(null);
 
     try {
+      console.log('[StoryReader] Calling generateNarration...');
       const result = await generateNarration(story.content, 'narrator', true); // whisper mode for soothing voice
+      console.log('[StoryReader] generateNarration result:', result.success, result.error);
 
       if (result.success && result.audioUri) {
+        console.log('[StoryReader] Setting audio URL and starting playback');
         setAudioUrl(result.audioUri);
         // Auto-play after generating
         await handlePlayNarration(result.audioUri);
       } else {
+        console.log('[StoryReader] Generation failed:', result.error);
         setNarrationError(result.error || 'Failed to generate narration');
       }
     } catch (error) {
+      console.error('[StoryReader] Exception:', error);
       setNarrationError('Failed to generate narration. Please try again.');
     } finally {
       setIsGeneratingAudio(false);
@@ -147,7 +156,12 @@ const StoryReaderScreen: React.FC = () => {
 
   // Toggle play/pause
   const handleTogglePlayback = async () => {
+    console.log('[StoryReader] handleTogglePlayback called');
+    console.log('[StoryReader] audioUrl:', audioUrl ? 'exists' : 'null');
+    console.log('[StoryReader] isPlaying:', isPlaying);
+
     if (!audioUrl) {
+      console.log('[StoryReader] No audioUrl, generating narration...');
       await handleGenerateNarration();
       return;
     }

@@ -49,7 +49,13 @@ export const generateNarration = async (
   voiceType: VoiceType = 'narrator',
   whisperMode: boolean = false
 ): Promise<NarrationResult> => {
+  console.log('[Narration] Starting generation...');
+  console.log('[Narration] API Key present:', !!ELEVENLABS_API_KEY);
+  console.log('[Narration] Voice type:', voiceType);
+  console.log('[Narration] Text length:', text.length);
+
   if (!ELEVENLABS_API_KEY) {
+    console.log('[Narration] ERROR: No API key configured');
     return {
       audioUri: '',
       success: false,
@@ -60,7 +66,10 @@ export const generateNarration = async (
   const voiceId = VOICE_IDS[voiceType];
   const settings = whisperMode ? WHISPER_SETTINGS : VOICE_SETTINGS;
 
+  console.log('[Narration] Using voice ID:', voiceId);
+
   try {
+    console.log('[Narration] Making API request...');
     const response = await axios.post(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
       {
@@ -78,10 +87,14 @@ export const generateNarration = async (
       }
     );
 
+    console.log('[Narration] API response received, status:', response.status);
+    console.log('[Narration] Response data size:', response.data?.byteLength || 0);
+
     // For web, create a blob URL
     if (Platform.OS === 'web') {
       const blob = new Blob([response.data], { type: 'audio/mpeg' });
       const audioUri = URL.createObjectURL(blob);
+      console.log('[Narration] SUCCESS - Blob URL created:', audioUri.substring(0, 50) + '...');
       return {
         audioUri,
         success: true,
@@ -91,12 +104,13 @@ export const generateNarration = async (
     // For native, we'd save to file system (but for now just use blob)
     const blob = new Blob([response.data], { type: 'audio/mpeg' });
     const audioUri = URL.createObjectURL(blob);
+    console.log('[Narration] SUCCESS - Blob URL created');
     return {
       audioUri,
       success: true,
     };
   } catch (error: any) {
-    console.error('ElevenLabs API Error:', error.response?.data || error.message);
+    console.error('[Narration] ERROR:', error.response?.status, error.response?.data || error.message);
     return {
       audioUri: '',
       success: false,
