@@ -1,5 +1,6 @@
 // 🌙 Moonlit Tales - Fluid Moonlight Design System
 // Color palette and design tokens for the magical UI
+import { Platform } from 'react-native';
 
 export const Colors = {
   // Primary Colors
@@ -88,28 +89,87 @@ export const Typography = {
   },
 };
 
-export const Shadows = {
-  soft: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  glow: {
-    shadowColor: '#C8A6FF',
+// Web-compatible shadows using boxShadow
+const createShadow = (color: string, blur: number, spread: number = 0) => {
+  if (Platform.OS === 'web') {
+    return {
+      boxShadow: `0 0 ${blur}px ${spread}px ${color}`,
+    };
+  }
+  return {
+    shadowColor: color,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-  gold: {
-    shadowColor: '#E6D8A8',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 16,
-    elevation: 6,
-  },
+    shadowRadius: blur / 2,
+    elevation: Math.min(blur / 3, 10),
+  };
+};
+
+export const Shadows = {
+  soft: Platform.OS === 'web'
+    ? { boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)' }
+    : {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 4,
+      },
+  glow: Platform.OS === 'web'
+    ? { boxShadow: '0 0 20px rgba(200, 166, 255, 0.5)' }
+    : {
+        shadowColor: '#C8A6FF',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.5,
+        shadowRadius: 20,
+        elevation: 8,
+      },
+  gold: Platform.OS === 'web'
+    ? { boxShadow: '0 0 16px rgba(230, 216, 168, 0.6)' }
+    : {
+        shadowColor: '#E6D8A8',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.6,
+        shadowRadius: 16,
+        elevation: 6,
+      },
+};
+
+// Web-compatible text shadow
+export const TextShadows = {
+  glow: Platform.OS === 'web'
+    ? { textShadow: '0 0 20px rgba(200, 166, 255, 0.5)' }
+    : {
+        textShadowColor: 'rgba(200, 166, 255, 0.5)',
+        textShadowOffset: { width: 0, height: 0 },
+        textShadowRadius: 20,
+      },
+  gold: Platform.OS === 'web'
+    ? { textShadow: '0 0 15px rgba(230, 216, 168, 0.5)' }
+    : {
+        textShadowColor: 'rgba(230, 216, 168, 0.5)',
+        textShadowOffset: { width: 0, height: 0 },
+        textShadowRadius: 15,
+      },
+  subtle: Platform.OS === 'web'
+    ? { textShadow: '0 0 10px rgba(200, 166, 255, 0.3)' }
+    : {
+        textShadowColor: 'rgba(200, 166, 255, 0.3)',
+        textShadowOffset: { width: 0, height: 0 },
+        textShadowRadius: 10,
+      },
+};
+
+// Helper to create custom text shadow
+export const createTextShadow = (color: string, radius: number) => {
+  if (Platform.OS === 'web') {
+    return { textShadow: `0 0 ${radius}px ${color}` };
+  }
+  return {
+    textShadowColor: color,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: radius,
+  };
 };
 
 // Animation durations (in milliseconds) - slow and dreamy per PRD

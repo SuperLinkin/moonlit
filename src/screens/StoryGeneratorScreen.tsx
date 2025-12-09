@@ -117,7 +117,7 @@ const StoryGeneratorScreen: React.FC = () => {
         title: result.title,
         content: result.content,
         mode,
-        createdAt: new Date(),
+        createdAt: new Date().toISOString(),
         audioUrl,
         isFavorite: false,
         settings,

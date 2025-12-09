@@ -13,7 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AnimatedBackground from '../components/AnimatedBackground';
 import MagicButton from '../components/MagicButton';
-import { Colors, Typography, Spacing, Animations } from '../utils/theme';
+import { Colors, Typography, Spacing, Animations, TextShadows } from '../utils/theme';
 import { RootStackParamList } from '../types';
 
 const { width, height } = Dimensions.get('window');
@@ -228,9 +228,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: Spacing.xl,
     letterSpacing: 1,
-    textShadowColor: 'rgba(200, 166, 255, 0.5)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 20,
+    ...TextShadows.glow,
   },
   greeting: {
     fontSize: Typography.fontSize.xl,
@@ -244,9 +242,7 @@ const styles = StyleSheet.create({
     color: Colors.starlight,
     textAlign: 'center',
     marginBottom: Spacing.xl,
-    textShadowColor: 'rgba(230, 216, 168, 0.5)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 15,
+    ...TextShadows.gold,
   },
   tagline: {
     fontSize: Typography.fontSize.lg,

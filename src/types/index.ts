@@ -22,7 +22,7 @@ export interface Story {
   title: string;
   content: string;
   mode: StoryMode;
-  createdAt: Date;
+  createdAt: string; // ISO string for serialization compatibility
   audioUrl?: string;
   isFavorite: boolean;
   settings: StorySettings;

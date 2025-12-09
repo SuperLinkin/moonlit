@@ -1,7 +1,6 @@
-// 🌙 Moonlit Tales - ElevenLabs Voice Narration Service
+// 🌙 Moonlit Tales - ElevenLabs Voice Narration Service (Web Compatible)
 import axios from 'axios';
-import { Paths, File } from 'expo-file-system';
-import { Audio } from 'expo-av';
+import { Platform } from 'react-native';
 import { VoiceType } from '../types';
 
 // API configuration - reads from env or can be set manually
@@ -14,7 +13,6 @@ export const setElevenLabsKey = (key: string) => {
 export const getElevenLabsKey = () => ELEVENLABS_API_KEY;
 
 // Voice IDs for different narration styles
-// These are ElevenLabs voice IDs - users can customize these
 const VOICE_IDS: Record<VoiceType, string> = {
   prince: 'pNInz6obpgDQGcFmaJgB', // Adam - warm male voice
   narrator: 'EXAVITQu4vr4xnSDxMaL', // Bella - soft female narrator
@@ -41,6 +39,10 @@ export interface NarrationResult {
   success: boolean;
   error?: string;
 }
+
+// Web Audio API for browser playback
+let webAudioElement: HTMLAudioElement | null = null;
+let isPlaying = false;
 
 export const generateNarration = async (
   text: string,
@@ -76,29 +78,21 @@ export const generateNarration = async (
       }
     );
 
-    // Save audio to file system using new expo-file-system API
-    const fileName = `story_${Date.now()}.mp3`;
-    const audioFile = new File(Paths.cache, fileName);
-
-    // Convert arraybuffer to base64
-    const base64Audio = btoa(
-      new Uint8Array(response.data).reduce(
-        (data, byte) => data + String.fromCharCode(byte),
-        ''
-      )
-    );
-
-    // Decode base64 and write as binary
-    const binaryString = atob(base64Audio);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
+    // For web, create a blob URL
+    if (Platform.OS === 'web') {
+      const blob = new Blob([response.data], { type: 'audio/mpeg' });
+      const audioUri = URL.createObjectURL(blob);
+      return {
+        audioUri,
+        success: true,
+      };
     }
 
-    await audioFile.write(bytes);
-
+    // For native, we'd save to file system (but for now just use blob)
+    const blob = new Blob([response.data], { type: 'audio/mpeg' });
+    const audioUri = URL.createObjectURL(blob);
     return {
-      audioUri: audioFile.uri,
+      audioUri,
       success: true,
     };
   } catch (error: any) {
@@ -111,72 +105,113 @@ export const generateNarration = async (
   }
 };
 
-// Audio player management
-let currentSound: Audio.Sound | null = null;
-let isPlaying = false;
-
+// Play narration using Web Audio API
 export const playNarration = async (
   audioUri: string,
   onPlaybackStatusUpdate?: (status: any) => void
 ): Promise<void> => {
   try {
-    // Stop any currently playing audio
     await stopNarration();
 
-    // Configure audio mode for background playback
-    await Audio.setAudioModeAsync({
-      playsInSilentModeIOS: true,
-      staysActiveInBackground: true,
-      shouldDuckAndroid: true,
-    });
+    if (Platform.OS === 'web') {
+      webAudioElement = new Audio();
+      webAudioElement.src = audioUri;
+      webAudioElement.volume = 0.9;
+      webAudioElement.preload = 'auto';
 
-    // Create and play the sound
-    const { sound } = await Audio.Sound.createAsync(
-      { uri: audioUri },
-      { shouldPlay: true },
-      onPlaybackStatusUpdate
-    );
+      // Wait for audio to be ready
+      await new Promise<void>((resolve, reject) => {
+        if (!webAudioElement) {
+          reject(new Error('Audio element not created'));
+          return;
+        }
 
-    currentSound = sound;
-    isPlaying = true;
+        webAudioElement.oncanplaythrough = () => {
+          console.log('Audio ready to play');
+          resolve();
+        };
+
+        webAudioElement.onerror = (e) => {
+          console.error('Audio loading error:', e);
+          reject(new Error('Failed to load audio'));
+        };
+
+        // Trigger load
+        webAudioElement.load();
+      });
+
+      webAudioElement.ontimeupdate = () => {
+        if (onPlaybackStatusUpdate && webAudioElement) {
+          const duration = webAudioElement.duration;
+          const position = webAudioElement.currentTime;
+          if (!isNaN(duration) && !isNaN(position)) {
+            onPlaybackStatusUpdate({
+              isLoaded: true,
+              isPlaying: !webAudioElement.paused,
+              positionMillis: position * 1000,
+              durationMillis: duration * 1000,
+              didJustFinish: false,
+            });
+          }
+        }
+      };
+
+      webAudioElement.onended = () => {
+        console.log('Audio playback ended');
+        if (onPlaybackStatusUpdate) {
+          onPlaybackStatusUpdate({
+            isLoaded: true,
+            isPlaying: false,
+            didJustFinish: true,
+          });
+        }
+        isPlaying = false;
+      };
+
+      // Start playback
+      await webAudioElement.play();
+      isPlaying = true;
+      console.log('Narration playback started');
+    }
   } catch (error) {
     console.error('Error playing narration:', error);
+    isPlaying = false;
     throw error;
   }
 };
 
 export const pauseNarration = async (): Promise<void> => {
-  if (currentSound && isPlaying) {
-    await currentSound.pauseAsync();
+  if (Platform.OS === 'web' && webAudioElement && isPlaying) {
+    webAudioElement.pause();
     isPlaying = false;
   }
 };
 
 export const resumeNarration = async (): Promise<void> => {
-  if (currentSound && !isPlaying) {
-    await currentSound.playAsync();
+  if (Platform.OS === 'web' && webAudioElement && !isPlaying) {
+    await webAudioElement.play();
     isPlaying = true;
   }
 };
 
 export const stopNarration = async (): Promise<void> => {
-  if (currentSound) {
-    await currentSound.stopAsync();
-    await currentSound.unloadAsync();
-    currentSound = null;
+  if (Platform.OS === 'web' && webAudioElement) {
+    webAudioElement.pause();
+    webAudioElement.currentTime = 0;
+    webAudioElement = null;
     isPlaying = false;
   }
 };
 
 export const seekNarration = async (positionMillis: number): Promise<void> => {
-  if (currentSound) {
-    await currentSound.setPositionAsync(positionMillis);
+  if (Platform.OS === 'web' && webAudioElement) {
+    webAudioElement.currentTime = positionMillis / 1000;
   }
 };
 
 export const setNarrationVolume = async (volume: number): Promise<void> => {
-  if (currentSound) {
-    await currentSound.setVolumeAsync(Math.max(0, Math.min(1, volume)));
+  if (Platform.OS === 'web' && webAudioElement) {
+    webAudioElement.volume = Math.max(0, Math.min(1, volume));
   }
 };
 
