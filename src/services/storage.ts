@@ -1,6 +1,6 @@
 // 🌙 Moonlit Tales - Local Storage Service
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Story, StorySettings } from '../types';
+import { Story, StorySettings, VoiceSettings, BackgroundTheme } from '../types';
 
 const STORAGE_KEYS = {
   STORIES: '@moonlit_stories',
@@ -155,7 +155,18 @@ export interface AppSettings {
   defaultLength: 'short' | 'medium' | 'long';
   autoPlay: boolean;
   hapticFeedback: boolean;
+  // Voice quality settings
+  voiceSettings: VoiceSettings;
+  // Background theme
+  backgroundTheme: BackgroundTheme;
 }
+
+const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
+  stability: 0.75,        // Balanced stability
+  similarityBoost: 0.75,  // Clear voice
+  style: 0.5,             // Moderate expressiveness
+  speed: 1.0,             // Normal speed
+};
 
 const DEFAULT_SETTINGS: AppSettings = {
   backgroundMusicVolume: 0.3,
@@ -164,6 +175,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   defaultLength: 'medium',
   autoPlay: true,
   hapticFeedback: true,
+  voiceSettings: DEFAULT_VOICE_SETTINGS,
+  backgroundTheme: 'dreamy',
 };
 
 export const saveSettings = async (settings: Partial<AppSettings>): Promise<void> => {

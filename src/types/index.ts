@@ -47,11 +47,94 @@ export interface AudioTrack {
 
 export type VoiceType = 'prince' | 'narrator';
 
+export interface VoiceSettings {
+  stability: number;      // 0-1: Higher = more stable/consistent, lower = more expressive
+  similarityBoost: number; // 0-1: Voice clarity vs variation
+  style: number;          // 0-1: Style exaggeration (0 = natural, 1 = expressive)
+  speed: number;          // 0.5-2: Playback speed (1 = normal)
+}
+
 export interface NarrationSettings {
   voice: VoiceType;
   whisperMode: boolean;
   backgroundMusicVolume: number;
 }
+
+export type BackgroundTheme = 'dreamy' | 'lofi' | 'starry' | 'aurora' | 'misty';
+
+export const BACKGROUND_THEMES: Record<BackgroundTheme, {
+  name: string;
+  icon: string;
+  description: string;
+  colors: {
+    primary: string;
+    secondary: string;
+    accent: string;
+  };
+  particleCount: number;
+  particleSpeed: number;
+}> = {
+  dreamy: {
+    name: 'Dreamy Moonlight',
+    icon: '🌙',
+    description: 'Soft, ethereal moonlit vibes',
+    colors: {
+      primary: '#1A0A2A',
+      secondary: '#311C4B',
+      accent: '#C8A6FF',
+    },
+    particleCount: 30,
+    particleSpeed: 0.3,
+  },
+  lofi: {
+    name: 'Lofi Nights',
+    icon: '🎧',
+    description: 'Cozy, warm aesthetic',
+    colors: {
+      primary: '#1A1420',
+      secondary: '#2A1F35',
+      accent: '#FFB6C1',
+    },
+    particleCount: 20,
+    particleSpeed: 0.2,
+  },
+  starry: {
+    name: 'Starry Sky',
+    icon: '✨',
+    description: 'Twinkling celestial wonder',
+    colors: {
+      primary: '#0A0A1A',
+      secondary: '#1A1A3A',
+      accent: '#E6D8A8',
+    },
+    particleCount: 50,
+    particleSpeed: 0.4,
+  },
+  aurora: {
+    name: 'Aurora Dreams',
+    icon: '🌌',
+    description: 'Northern lights magic',
+    colors: {
+      primary: '#0A1A2A',
+      secondary: '#1A2A4A',
+      accent: '#7DD3A8',
+    },
+    particleCount: 25,
+    particleSpeed: 0.5,
+  },
+  misty: {
+    name: 'Misty Forest',
+    icon: '🌲',
+    description: 'Peaceful foggy serenity',
+    colors: {
+      primary: '#1A1A20',
+      secondary: '#252530',
+      accent: '#DDE3F3',
+    },
+    particleCount: 15,
+    particleSpeed: 0.15,
+  },
+};
 
 // Navigation types
 export type RootStackParamList = {

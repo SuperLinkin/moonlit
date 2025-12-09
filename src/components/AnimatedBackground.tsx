@@ -1,8 +1,9 @@
 // 🌙 Moonlit Tales - Animated Background with Stars and Sparkles
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { View, StyleSheet, Animated, Dimensions, Easing } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Gradients } from '../utils/theme';
+import { BackgroundTheme, BACKGROUND_THEMES } from '../types';
 
 const { width, height } = Dimensions.get('window');
 
@@ -18,16 +19,24 @@ interface Star {
 interface AnimatedBackgroundProps {
   children?: React.ReactNode;
   intensity?: 'low' | 'medium' | 'high';
+  theme?: BackgroundTheme;
 }
 
 const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
   children,
   intensity = 'medium',
+  theme = 'dreamy',
 }) => {
-  const starCount = intensity === 'low' ? 20 : intensity === 'medium' ? 40 : 60;
+  // Get theme configuration
+  const themeConfig = BACKGROUND_THEMES[theme];
+
+  // Use theme's particle count, adjusted by intensity
+  const intensityMultiplier = intensity === 'low' ? 0.5 : intensity === 'medium' ? 1 : 1.5;
+  const starCount = Math.round(themeConfig.particleCount * intensityMultiplier);
+
   const starsRef = useRef<Star[]>([]);
 
-  // Initialize stars
+  // Initialize stars with theme-based speed
   if (starsRef.current.length === 0) {
     starsRef.current = Array.from({ length: starCount }, (_, i) => ({
       id: i,
@@ -35,7 +44,7 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
       y: Math.random() * height,
       size: Math.random() * 3 + 1,
       opacity: new Animated.Value(Math.random()),
-      duration: Math.random() * 3000 + 2000,
+      duration: Math.random() * 3000 + (2000 / themeConfig.particleSpeed),
     }));
   }
 
@@ -62,10 +71,17 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
     });
   }, []);
 
+  // Create gradient colors from theme
+  const gradientColors = [
+    themeConfig.colors.primary,
+    themeConfig.colors.secondary,
+    themeConfig.colors.primary,
+  ];
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: themeConfig.colors.primary }]}>
       <LinearGradient
-        colors={Gradients.background as any}
+        colors={gradientColors as any}
         style={styles.gradient}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
@@ -85,6 +101,7 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
                 height: star.size,
                 borderRadius: star.size / 2,
                 opacity: star.opacity,
+                backgroundColor: themeConfig.colors.accent,
               },
             ]}
           />
@@ -92,10 +109,10 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
       </View>
 
       {/* Sparkles Layer */}
-      <SparklesLayer />
+      <SparklesLayer accentColor={themeConfig.colors.accent} />
 
       {/* Moon Glow */}
-      <View style={styles.moonGlow} />
+      <View style={[styles.moonGlow, { backgroundColor: `${themeConfig.colors.accent}15` }]} />
 
       {/* Content */}
       {children}
@@ -104,7 +121,11 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
 };
 
 // Floating sparkles component
-const SparklesLayer: React.FC = () => {
+interface SparklesLayerProps {
+  accentColor?: string;
+}
+
+const SparklesLayer: React.FC<SparklesLayerProps> = ({ accentColor = Colors.starlight }) => {
   const sparkles = useRef(
     Array.from({ length: 15 }, (_, i) => ({
       id: i,
@@ -187,9 +208,9 @@ const SparklesLayer: React.FC = () => {
             },
           ]}
         >
-          <View style={styles.sparkleCore} />
-          <View style={styles.sparkleRayH} />
-          <View style={styles.sparkleRayV} />
+          <View style={[styles.sparkleCore, { backgroundColor: accentColor }]} />
+          <View style={[styles.sparkleRayH, { backgroundColor: accentColor }]} />
+          <View style={[styles.sparkleRayV, { backgroundColor: accentColor }]} />
         </Animated.View>
       ))}
     </View>

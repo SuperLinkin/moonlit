@@ -1,7 +1,7 @@
 // 🌙 Moonlit Tales - ElevenLabs Voice Narration Service (Web Compatible)
 import axios from 'axios';
 import { Platform } from 'react-native';
-import { VoiceType } from '../types';
+import { VoiceType, VoiceSettings } from '../types';
 
 // API configuration - reads from env or can be set manually
 let ELEVENLABS_API_KEY = process.env.EXPO_PUBLIC_ELEVENLABS_API_KEY || '';
@@ -18,20 +18,29 @@ const VOICE_IDS: Record<VoiceType, string> = {
   narrator: 'EXAVITQu4vr4xnSDxMaL', // Bella - soft female narrator
 };
 
-// Voice settings for bedtime stories
-const VOICE_SETTINGS = {
+// Default voice settings for bedtime stories
+const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
   stability: 0.75,
-  similarity_boost: 0.75,
+  similarityBoost: 0.75,
   style: 0.5,
-  use_speaker_boost: true,
+  speed: 1.0,
 };
 
-// Whisper mode settings (softer, slower)
-const WHISPER_SETTINGS = {
-  stability: 0.9,
-  similarity_boost: 0.6,
-  style: 0.3,
-  use_speaker_boost: false,
+// Custom voice settings (can be updated via setVoiceSettings)
+let customVoiceSettings: VoiceSettings = { ...DEFAULT_VOICE_SETTINGS };
+
+// Set custom voice settings
+export const setVoiceSettings = (settings: VoiceSettings) => {
+  customVoiceSettings = { ...settings };
+};
+
+// Get current voice settings
+export const getVoiceSettings = (): VoiceSettings => ({ ...customVoiceSettings });
+
+// Whisper mode adjustments (applied on top of custom settings)
+const WHISPER_ADJUSTMENTS = {
+  stabilityBoost: 0.15,  // More stable for whisper
+  styleReduction: 0.2,   // Less expressive for whisper
 };
 
 export interface NarrationResult {
@@ -64,9 +73,27 @@ export const generateNarration = async (
   }
 
   const voiceId = VOICE_IDS[voiceType];
-  const settings = whisperMode ? WHISPER_SETTINGS : VOICE_SETTINGS;
+
+  // Build voice settings from custom settings
+  let stability = customVoiceSettings.stability;
+  let similarityBoost = customVoiceSettings.similarityBoost;
+  let style = customVoiceSettings.style;
+
+  // Apply whisper mode adjustments
+  if (whisperMode) {
+    stability = Math.min(1, stability + WHISPER_ADJUSTMENTS.stabilityBoost);
+    style = Math.max(0, style - WHISPER_ADJUSTMENTS.styleReduction);
+  }
+
+  const settings = {
+    stability,
+    similarity_boost: similarityBoost,
+    style,
+    use_speaker_boost: !whisperMode, // Disable speaker boost in whisper mode
+  };
 
   console.log('[Narration] Using voice ID:', voiceId);
+  console.log('[Narration] Voice settings:', settings);
 
   try {
     console.log('[Narration] Making API request...');
@@ -197,8 +224,11 @@ export const playNarration = async (
         isPlaying = false;
       };
 
+      // Apply playback speed from voice settings
+      webAudioElement.playbackRate = customVoiceSettings.speed;
+
       // Start playback
-      console.log('[Playback] Starting playback...');
+      console.log('[Playback] Starting playback at speed:', customVoiceSettings.speed);
       await webAudioElement.play();
       isPlaying = true;
       console.log('[Playback] SUCCESS - Narration playback started');

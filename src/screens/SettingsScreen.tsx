@@ -11,6 +11,7 @@ import {
   Alert,
   StatusBar,
   Linking,
+  TouchableOpacity,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -18,9 +19,9 @@ import Slider from '@react-native-community/slider';
 import AnimatedBackground from '../components/AnimatedBackground';
 import MagicButton from '../components/MagicButton';
 import { Colors, Typography, Spacing, BorderRadius, Animations } from '../utils/theme';
-import { RootStackParamList } from '../types';
+import { RootStackParamList, BackgroundTheme, BACKGROUND_THEMES, VoiceSettings } from '../types';
 import { setOpenAIKey, getOpenAIKey } from '../services/openai';
-import { setElevenLabsKey, getElevenLabsKey } from '../services/elevenlabs';
+import { setElevenLabsKey, getElevenLabsKey, setVoiceSettings } from '../services/elevenlabs';
 import {
   saveAPIKeys,
   getAPIKeys,
@@ -49,6 +50,13 @@ const SettingsScreen: React.FC = () => {
     defaultLength: 'medium',
     autoPlay: true,
     hapticFeedback: true,
+    voiceSettings: {
+      stability: 0.75,
+      similarityBoost: 0.75,
+      style: 0.5,
+      speed: 1.0,
+    },
+    backgroundTheme: 'dreamy',
   });
 
   // Animations
@@ -75,6 +83,11 @@ const SettingsScreen: React.FC = () => {
     // Set the keys in the service modules
     setOpenAIKey(apiKeys.openai);
     setElevenLabsKey(apiKeys.elevenlabs);
+
+    // Apply voice settings to ElevenLabs service
+    if (appSettings.voiceSettings) {
+      setVoiceSettings(appSettings.voiceSettings);
+    }
   };
 
   const handleSaveAPIKeys = async () => {
@@ -96,6 +109,21 @@ const SettingsScreen: React.FC = () => {
 
   const handleSettingChange = async (key: keyof AppSettings, value: any) => {
     const newSettings = { ...settings, [key]: value };
+    setSettingsState(newSettings);
+    await saveSettings(newSettings);
+  };
+
+  const handleVoiceSettingChange = async (key: keyof VoiceSettings, value: number) => {
+    const newVoiceSettings = { ...settings.voiceSettings, [key]: value };
+    const newSettings = { ...settings, voiceSettings: newVoiceSettings };
+    setSettingsState(newSettings);
+    await saveSettings(newSettings);
+    // Update ElevenLabs service immediately
+    setVoiceSettings(newVoiceSettings);
+  };
+
+  const handleThemeChange = async (theme: BackgroundTheme) => {
+    const newSettings = { ...settings, backgroundTheme: theme };
     setSettingsState(newSettings);
     await saveSettings(newSettings);
   };
@@ -124,7 +152,7 @@ const SettingsScreen: React.FC = () => {
   };
 
   return (
-    <AnimatedBackground intensity="low">
+    <AnimatedBackground intensity="low" theme={settings.backgroundTheme}>
       <StatusBar barStyle="light-content" />
       <Animated.ScrollView
         style={[styles.container, { opacity: fadeAnim }]}
@@ -266,6 +294,129 @@ const SettingsScreen: React.FC = () => {
               trackColor={{ false: Colors.cardBorder, true: Colors.lilac }}
               thumbColor={settings.autoPlay ? Colors.starlight : Colors.silver}
             />
+          </View>
+        </View>
+
+        {/* Voice Quality Settings */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Voice Quality</Text>
+          <Text style={styles.sectionDescription}>
+            Adjust how the narration voice sounds
+          </Text>
+
+          {/* Stability (Soothingness) */}
+          <View style={styles.sliderGroup}>
+            <Text style={styles.inputLabel}>
+              Soothingness: {Math.round(settings.voiceSettings.stability * 100)}%
+            </Text>
+            <Text style={styles.sliderHint}>Higher = more calm and consistent</Text>
+            <Slider
+              style={styles.slider}
+              minimumValue={0}
+              maximumValue={1}
+              value={settings.voiceSettings.stability}
+              onValueChange={(value) => handleVoiceSettingChange('stability', value)}
+              minimumTrackTintColor={Colors.lilac}
+              maximumTrackTintColor={Colors.cardBorder}
+              thumbTintColor={Colors.starlight}
+            />
+          </View>
+
+          {/* Similarity Boost (Softness/Clarity) */}
+          <View style={styles.sliderGroup}>
+            <Text style={styles.inputLabel}>
+              Softness: {Math.round(settings.voiceSettings.similarityBoost * 100)}%
+            </Text>
+            <Text style={styles.sliderHint}>Higher = clearer, softer voice</Text>
+            <Slider
+              style={styles.slider}
+              minimumValue={0}
+              maximumValue={1}
+              value={settings.voiceSettings.similarityBoost}
+              onValueChange={(value) => handleVoiceSettingChange('similarityBoost', value)}
+              minimumTrackTintColor={Colors.lilac}
+              maximumTrackTintColor={Colors.cardBorder}
+              thumbTintColor={Colors.starlight}
+            />
+          </View>
+
+          {/* Style (Expressiveness) */}
+          <View style={styles.sliderGroup}>
+            <Text style={styles.inputLabel}>
+              Expressiveness: {Math.round(settings.voiceSettings.style * 100)}%
+            </Text>
+            <Text style={styles.sliderHint}>Higher = more emotional, lower = more neutral</Text>
+            <Slider
+              style={styles.slider}
+              minimumValue={0}
+              maximumValue={1}
+              value={settings.voiceSettings.style}
+              onValueChange={(value) => handleVoiceSettingChange('style', value)}
+              minimumTrackTintColor={Colors.lilac}
+              maximumTrackTintColor={Colors.cardBorder}
+              thumbTintColor={Colors.starlight}
+            />
+          </View>
+
+          {/* Speed */}
+          <View style={styles.sliderGroup}>
+            <Text style={styles.inputLabel}>
+              Speed: {settings.voiceSettings.speed.toFixed(1)}x
+            </Text>
+            <Text style={styles.sliderHint}>0.5x (slow) to 2x (fast)</Text>
+            <Slider
+              style={styles.slider}
+              minimumValue={0.5}
+              maximumValue={2}
+              value={settings.voiceSettings.speed}
+              onValueChange={(value) => handleVoiceSettingChange('speed', value)}
+              minimumTrackTintColor={Colors.lilac}
+              maximumTrackTintColor={Colors.cardBorder}
+              thumbTintColor={Colors.starlight}
+            />
+          </View>
+        </View>
+
+        {/* Background Theme */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Background Theme</Text>
+          <Text style={styles.sectionDescription}>
+            Choose the visual ambience for your stories
+          </Text>
+
+          <View style={styles.themeGrid}>
+            {(Object.keys(BACKGROUND_THEMES) as BackgroundTheme[]).map((themeKey) => {
+              const themeConfig = BACKGROUND_THEMES[themeKey];
+              const isSelected = settings.backgroundTheme === themeKey;
+              return (
+                <TouchableOpacity
+                  key={themeKey}
+                  style={[
+                    styles.themeCard,
+                    isSelected && styles.themeCardSelected,
+                    { borderColor: isSelected ? themeConfig.colors.accent : Colors.cardBorder },
+                  ]}
+                  onPress={() => handleThemeChange(themeKey)}
+                >
+                  <View
+                    style={[
+                      styles.themePreview,
+                      { backgroundColor: themeConfig.colors.primary },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.themeAccent,
+                        { backgroundColor: themeConfig.colors.accent },
+                      ]}
+                    />
+                  </View>
+                  <Text style={styles.themeIcon}>{themeConfig.icon}</Text>
+                  <Text style={styles.themeName}>{themeConfig.name}</Text>
+                  <Text style={styles.themeDescription}>{themeConfig.description}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
@@ -468,6 +619,58 @@ const styles = StyleSheet.create({
   },
   slider: {
     height: 40,
+  },
+  sliderHint: {
+    fontSize: Typography.fontSize.xs,
+    color: Colors.textMuted,
+    marginBottom: Spacing.xs,
+  },
+  themeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.md,
+  },
+  themeCard: {
+    width: '47%',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    borderWidth: 2,
+    borderColor: Colors.cardBorder,
+    alignItems: 'center',
+  },
+  themeCardSelected: {
+    backgroundColor: 'rgba(200, 166, 255, 0.1)',
+  },
+  themePreview: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginBottom: Spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  themeAccent: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+  },
+  themeIcon: {
+    fontSize: 24,
+    marginBottom: Spacing.xs,
+  },
+  themeName: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: Spacing.xs,
+  },
+  themeDescription: {
+    fontSize: Typography.fontSize.xs,
+    color: Colors.textMuted,
+    textAlign: 'center',
   },
   switchRow: {
     flexDirection: 'row',

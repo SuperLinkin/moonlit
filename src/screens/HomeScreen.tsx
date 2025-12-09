@@ -13,12 +13,13 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useCallback } from 'react';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import AnimatedBackground from '../components/AnimatedBackground';
 import { Colors, Typography, Spacing, BorderRadius, Animations, TextShadows, Shadows } from '../utils/theme';
-import { RootStackParamList, STORY_MODES, StoryMode } from '../types';
+import { RootStackParamList, STORY_MODES, StoryMode, BackgroundTheme } from '../types';
 import {
   playAmbientMusic,
   stopAmbientMusic,
@@ -28,7 +29,7 @@ import {
   AMBIENT_SOUNDS,
   AmbientSoundType,
 } from '../services/ambientMusic';
-import { getSettings } from '../services/storage';
+import { getSettings, AppSettings } from '../services/storage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -56,10 +57,24 @@ const HomeScreen: React.FC = () => {
   const [isAmbientLoading, setIsAmbientLoading] = useState(false);
   const [currentAmbient, setCurrentAmbient] = useState<AmbientSoundType>('moonlit_wind');
   const [showAmbientPicker, setShowAmbientPicker] = useState(false);
+  const [backgroundTheme, setBackgroundTheme] = useState<BackgroundTheme>('dreamy');
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+
+  // Reload theme when screen comes into focus (e.g., after changing in Settings)
+  useFocusEffect(
+    useCallback(() => {
+      const loadTheme = async () => {
+        const settings = await getSettings();
+        if (settings.backgroundTheme) {
+          setBackgroundTheme(settings.backgroundTheme);
+        }
+      };
+      loadTheme();
+    }, [])
+  );
 
   useEffect(() => {
     Animated.parallel([
@@ -151,7 +166,7 @@ const HomeScreen: React.FC = () => {
   );
 
   return (
-    <AnimatedBackground intensity="medium">
+    <AnimatedBackground intensity="medium" theme={backgroundTheme}>
       <StatusBar barStyle="light-content" />
       <View style={styles.outerContainer}>
         <ScrollView
