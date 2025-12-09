@@ -124,29 +124,44 @@ export const playNarration = async (
   audioUri: string,
   onPlaybackStatusUpdate?: (status: any) => void
 ): Promise<void> => {
+  console.log('[Playback] playNarration called with URI:', audioUri?.substring(0, 50) + '...');
+
   try {
     await stopNarration();
 
     if (Platform.OS === 'web') {
+      console.log('[Playback] Creating Audio element...');
       webAudioElement = new Audio();
       webAudioElement.src = audioUri;
       webAudioElement.volume = 0.9;
       webAudioElement.preload = 'auto';
 
       // Wait for audio to be ready
+      console.log('[Playback] Waiting for audio to load...');
       await new Promise<void>((resolve, reject) => {
         if (!webAudioElement) {
           reject(new Error('Audio element not created'));
           return;
         }
 
+        const timeoutId = setTimeout(() => {
+          console.log('[Playback] Load timeout - trying to play anyway');
+          resolve();
+        }, 5000);
+
         webAudioElement.oncanplaythrough = () => {
-          console.log('Audio ready to play');
+          clearTimeout(timeoutId);
+          console.log('[Playback] Audio ready to play (canplaythrough)');
           resolve();
         };
 
+        webAudioElement.onloadeddata = () => {
+          console.log('[Playback] Audio data loaded');
+        };
+
         webAudioElement.onerror = (e) => {
-          console.error('Audio loading error:', e);
+          clearTimeout(timeoutId);
+          console.error('[Playback] Audio loading error:', e);
           reject(new Error('Failed to load audio'));
         };
 
@@ -171,7 +186,7 @@ export const playNarration = async (
       };
 
       webAudioElement.onended = () => {
-        console.log('Audio playback ended');
+        console.log('[Playback] Audio playback ended');
         if (onPlaybackStatusUpdate) {
           onPlaybackStatusUpdate({
             isLoaded: true,
@@ -183,28 +198,37 @@ export const playNarration = async (
       };
 
       // Start playback
+      console.log('[Playback] Starting playback...');
       await webAudioElement.play();
       isPlaying = true;
-      console.log('Narration playback started');
+      console.log('[Playback] SUCCESS - Narration playback started');
     }
   } catch (error) {
-    console.error('Error playing narration:', error);
+    console.error('[Playback] ERROR:', error);
     isPlaying = false;
     throw error;
   }
 };
 
 export const pauseNarration = async (): Promise<void> => {
+  console.log('[Playback] pauseNarration called, isPlaying:', isPlaying, 'hasElement:', !!webAudioElement);
   if (Platform.OS === 'web' && webAudioElement && isPlaying) {
     webAudioElement.pause();
     isPlaying = false;
+    console.log('[Playback] Paused');
   }
 };
 
 export const resumeNarration = async (): Promise<void> => {
+  console.log('[Playback] resumeNarration called, isPlaying:', isPlaying, 'hasElement:', !!webAudioElement);
   if (Platform.OS === 'web' && webAudioElement && !isPlaying) {
-    await webAudioElement.play();
-    isPlaying = true;
+    try {
+      await webAudioElement.play();
+      isPlaying = true;
+      console.log('[Playback] Resumed');
+    } catch (error) {
+      console.error('[Playback] Resume failed:', error);
+    }
   }
 };
 

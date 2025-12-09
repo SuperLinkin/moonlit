@@ -167,6 +167,7 @@ const StoryReaderScreen: React.FC = () => {
     }
 
     if (isPlaying) {
+      console.log('[StoryReader] Pausing narration...');
       await pauseNarration();
       setIsPlaying(false);
       // Restore ambient volume
@@ -174,12 +175,25 @@ const StoryReaderScreen: React.FC = () => {
         await fadeAmbientVolume(0.3, 500);
       }
     } else {
+      console.log('[StoryReader] Resuming/playing narration...');
       // Lower ambient when playing
       if (isAmbientPlaying) {
         await fadeAmbientVolume(0.1, 500);
       }
-      await resumeNarration();
-      setIsPlaying(true);
+      // Try to resume, if it fails (no audio element), play from scratch
+      try {
+        await resumeNarration();
+        // Check if playback actually started
+        if (!isNarrationPlaying()) {
+          console.log('[StoryReader] Resume did not work, playing from scratch...');
+          await handlePlayNarration(audioUrl!);
+        }
+        setIsPlaying(true);
+      } catch (error) {
+        console.log('[StoryReader] Resume failed, playing from scratch...');
+        await handlePlayNarration(audioUrl!);
+        setIsPlaying(true);
+      }
     }
   };
 
