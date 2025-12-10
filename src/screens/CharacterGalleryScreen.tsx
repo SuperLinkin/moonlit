@@ -22,7 +22,8 @@ import AddCharacterModal from '../components/AddCharacterModal';
 import MagicButton from '../components/MagicButton';
 import { Colors, Typography, Spacing, BorderRadius, Animations } from '../utils/theme';
 import { RootStackParamList, CHARACTERS, Character } from '../types';
-import { generateCharacterImage, getCachedImage, getGeminiKey } from '../services/gemini';
+import { generateCharacterImage, getCachedImage } from '../services/gemini';
+import { getOpenAIKey } from '../services/openai';
 import { getCustomCharacters, deleteCustomCharacter } from '../services/storage';
 
 const { width } = Dimensions.get('window');
@@ -323,8 +324,8 @@ const CharacterGalleryScreen: React.FC = () => {
   );
 
   useEffect(() => {
-    // Check if API key is configured
-    const apiKey = getGeminiKey();
+    // Check if OpenAI API key is configured (used for DALL-E image generation)
+    const apiKey = getOpenAIKey();
     setHasApiKey(!!apiKey);
 
     // Load any cached images
@@ -338,13 +339,14 @@ const CharacterGalleryScreen: React.FC = () => {
       }
     });
 
-    // Auto-generate images if API key is configured and not all cached
-    if (apiKey && !hasAllCached) {
-      // Start generating images automatically with a small delay
-      setTimeout(() => {
-        autoGenerateAllImages();
-      }, 1000);
-    }
+    // NOTE: Auto-generation disabled to avoid rate limiting
+    // Users can manually click "Portrait" button on each character card
+    // or use the "✨ Portraits" button to generate all at once
+    // if (apiKey && !hasAllCached) {
+    //   setTimeout(() => {
+    //     autoGenerateAllImages();
+    //   }, 1000);
+    // }
 
     // Animate header
     Animated.timing(headerAnim, {

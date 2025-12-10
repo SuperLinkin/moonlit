@@ -1,7 +1,8 @@
-// 🌙 Moonlit Tales - Gemini Image Generation Service
+// 🌙 Moonlit Tales - Image Generation Service (using OpenAI DALL-E)
 import axios from 'axios';
+import { getOpenAIKey } from './openai';
 
-// API configuration
+// Legacy Gemini key support (for backwards compatibility)
 let GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
 
 export const setGeminiKey = (key: string) => {
@@ -15,9 +16,6 @@ export interface ImageGenerationResult {
   success: boolean;
   error?: string;
 }
-
-// Primary model for image generation - gemini-2.0-flash-exp supports image output
-const IMAGE_GENERATION_MODEL = 'gemini-2.0-flash-exp';
 
 // Character image prompts - Anime/Manga style
 // Pratima & Pranav are the heroes (romantic couple)
@@ -44,88 +42,72 @@ const imageCache: Record<string, string> = {};
 // Helper to wait
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Try to generate image with retry logic for rate limits
-const tryGenerateWithRetry = async (
-  prompt: string,
-  maxRetries: number = 3
-): Promise<ImageGenerationResult | null> => {
-  let lastError: any = null;
+// Generate image using OpenAI DALL-E
+const generateWithOpenAI = async (prompt: string): Promise<ImageGenerationResult | null> => {
+  const apiKey = getOpenAIKey();
 
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      console.log(`[Gemini] Attempt ${attempt + 1}/${maxRetries} for image generation...`);
-
-      const response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/${IMAGE_GENERATION_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
-        {
-          contents: [
-            {
-              parts: [
-                {
-                  text: `Generate an anime-style character portrait image: ${prompt}`,
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            responseModalities: ['TEXT', 'IMAGE'],
-          },
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          timeout: 90000, // 90 second timeout for image generation
-        }
-      );
-
-      console.log('[Gemini] Response received');
-
-      // Parse the response - look for inline image data
-      const candidates = response.data?.candidates;
-      if (candidates && candidates[0]?.content?.parts) {
-        for (const part of candidates[0].content.parts) {
-          if (part.inlineData?.mimeType?.startsWith('image/')) {
-            const base64Image = part.inlineData.data;
-            const mimeType = part.inlineData.mimeType;
-            const imageUrl = `data:${mimeType};base64,${base64Image}`;
-
-            console.log('[Gemini] SUCCESS - Image generated!');
-            return {
-              imageUrl,
-              success: true,
-            };
-          }
-        }
-      }
-
-      // No image in response
-      console.log('[Gemini] Response had no image data');
-      return null;
-
-    } catch (error: any) {
-      lastError = error;
-      const status = error.response?.status;
-
-      console.log(`[Gemini] Request failed with status ${status}:`, error.message);
-
-      // If rate limited, wait and retry with exponential backoff
-      if (status === 429) {
-        const waitTime = Math.pow(2, attempt) * 5000; // 5s, 10s, 20s
-        console.log(`[Gemini] Rate limited. Waiting ${waitTime / 1000}s before retry...`);
-        await delay(waitTime);
-        continue;
-      }
-
-      // For other errors, don't retry
-      break;
-    }
+  if (!apiKey) {
+    console.log('[ImageGen] No OpenAI API key configured');
+    return null;
   }
 
-  // All retries failed
-  const errorMessage = lastError?.response?.data?.error?.message || lastError?.message || 'Unknown error';
-  console.log('[Gemini] All retries failed:', errorMessage);
-  return null;
+  try {
+    console.log('[ImageGen] Generating image with OpenAI DALL-E...');
+
+    const response = await axios.post(
+      'https://api.openai.com/v1/images/generations',
+      {
+        model: 'dall-e-3',
+        prompt: `Create an anime-style character portrait: ${prompt}`,
+        n: 1,
+        size: '1024x1024',
+        quality: 'standard',
+        response_format: 'b64_json',
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        timeout: 120000, // 2 minute timeout for DALL-E
+      }
+    );
+
+    if (response.data?.data?.[0]?.b64_json) {
+      const base64Image = response.data.data[0].b64_json;
+      const imageUrl = `data:image/png;base64,${base64Image}`;
+
+      console.log('[ImageGen] SUCCESS - Image generated with DALL-E!');
+      return {
+        imageUrl,
+        success: true,
+      };
+    }
+
+    console.log('[ImageGen] DALL-E returned no image data');
+    return null;
+
+  } catch (error: any) {
+    console.error('[ImageGen] DALL-E error:', error.response?.status, error.response?.data || error.message);
+
+    if (error.response?.status === 429) {
+      return {
+        imageUrl: '',
+        success: false,
+        error: 'Rate limit exceeded. Please wait a moment and try again.',
+      };
+    }
+
+    if (error.response?.status === 400) {
+      return {
+        imageUrl: '',
+        success: false,
+        error: 'Image generation was blocked. The prompt may have been flagged.',
+      };
+    }
+
+    return null;
+  }
 };
 
 export const generateCharacterImage = async (
@@ -133,25 +115,25 @@ export const generateCharacterImage = async (
   forceRegenerate: boolean = false,
   customPrompt?: string
 ): Promise<ImageGenerationResult> => {
-  console.log('[Gemini] generateCharacterImage called for:', characterId);
-  console.log('[Gemini] API Key present:', !!GEMINI_API_KEY);
-  console.log('[Gemini] Custom prompt provided:', !!customPrompt);
+  console.log('[ImageGen] generateCharacterImage called for:', characterId);
 
   // Check cache first
   if (!forceRegenerate && imageCache[characterId]) {
-    console.log('[Gemini] Returning cached image for:', characterId);
+    console.log('[ImageGen] Returning cached image for:', characterId);
     return {
       imageUrl: imageCache[characterId],
       success: true,
     };
   }
 
-  if (!GEMINI_API_KEY) {
-    console.log('[Gemini] ERROR: No API key configured');
+  const openaiKey = getOpenAIKey();
+
+  if (!openaiKey) {
+    console.log('[ImageGen] ERROR: No OpenAI API key configured');
     return {
       imageUrl: '',
       success: false,
-      error: 'Gemini API key not configured. Please set your API key in Settings.',
+      error: 'OpenAI API key not configured. Please set your API key in Settings to generate character portraits.',
     };
   }
 
@@ -164,7 +146,7 @@ export const generateCharacterImage = async (
   }
 
   if (!prompt) {
-    console.log('[Gemini] ERROR: No prompt found for character:', characterId);
+    console.log('[ImageGen] ERROR: No prompt found for character:', characterId);
     return {
       imageUrl: '',
       success: false,
@@ -172,8 +154,8 @@ export const generateCharacterImage = async (
     };
   }
 
-  // Try to generate with retries
-  const result = await tryGenerateWithRetry(prompt);
+  // Generate with OpenAI DALL-E
+  const result = await generateWithOpenAI(prompt);
 
   if (result && result.success) {
     // Cache the successful result
@@ -181,12 +163,11 @@ export const generateCharacterImage = async (
     return result;
   }
 
-  // Generation failed
-  console.log('[Gemini] Image generation failed for:', characterId);
-  return {
+  // Return error from result or generic error
+  return result || {
     imageUrl: '',
     success: false,
-    error: 'Image generation failed. The API may be rate limited or the model may not support image generation. Please try again in a moment.',
+    error: 'Image generation failed. Please try again.',
   };
 };
 
@@ -202,9 +183,9 @@ export const generateAllCharacterImages = async (
     results[characterId] = await generateCharacterImage(characterId);
     onProgress?.(i + 1, characterIds.length);
 
-    // Longer delay between requests to avoid rate limiting (3 seconds)
+    // Delay between requests to avoid rate limiting (2 seconds for DALL-E)
     if (i < characterIds.length - 1) {
-      await delay(3000);
+      await delay(2000);
     }
   }
 
