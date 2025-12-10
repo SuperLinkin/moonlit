@@ -16,6 +16,13 @@ export interface ImageGenerationResult {
   error?: string;
 }
 
+// Models to try in order of preference for image generation
+const IMAGE_GENERATION_MODELS = [
+  'gemini-2.0-flash-preview-image-generation', // Newer image generation model
+  'gemini-2.0-flash-exp',                       // Experimental with image support
+  'imagen-3.0-generate-002',                    // Imagen 3 (requires special access)
+];
+
 // Character image prompts - Anime/Manga style
 // Pratima & Pranav are the heroes (romantic couple)
 // Lanka, Jinal, Pavani, Ramaya are the chaotic court villains/antagonists
@@ -37,6 +44,110 @@ const CHARACTER_PROMPTS: Record<string, string> = {
 
 // Cache for generated images
 const imageCache: Record<string, string> = {};
+
+// Try to generate image using generateContent API (for Gemini 2.0 models)
+const tryGenerateContentAPI = async (model: string, prompt: string): Promise<ImageGenerationResult | null> => {
+  try {
+    console.log(`[Gemini] Trying ${model} with generateContent API...`);
+
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        contents: [
+          {
+            parts: [
+              {
+                text: `Generate an anime-style character portrait image: ${prompt}`,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          responseModalities: ['TEXT', 'IMAGE'],
+        },
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        timeout: 60000, // 60 second timeout for image generation
+      }
+    );
+
+    console.log(`[Gemini] ${model} response received`);
+
+    // Parse the response - look for inline image data
+    const candidates = response.data?.candidates;
+    if (candidates && candidates[0]?.content?.parts) {
+      for (const part of candidates[0].content.parts) {
+        if (part.inlineData?.mimeType?.startsWith('image/')) {
+          const base64Image = part.inlineData.data;
+          const mimeType = part.inlineData.mimeType;
+          const imageUrl = `data:${mimeType};base64,${base64Image}`;
+
+          console.log(`[Gemini] SUCCESS with ${model}`);
+          return {
+            imageUrl,
+            success: true,
+          };
+        }
+      }
+    }
+
+    console.log(`[Gemini] ${model} returned no image data`);
+    return null;
+  } catch (error: any) {
+    console.log(`[Gemini] ${model} failed:`, error.response?.status, error.message);
+    return null;
+  }
+};
+
+// Try to generate image using Imagen predict API
+const tryImagenAPI = async (model: string, prompt: string): Promise<ImageGenerationResult | null> => {
+  try {
+    console.log(`[Gemini] Trying ${model} with predict API...`);
+
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:predict?key=${GEMINI_API_KEY}`,
+      {
+        instances: [
+          {
+            prompt: prompt,
+          },
+        ],
+        parameters: {
+          sampleCount: 1,
+          aspectRatio: '1:1',
+          safetyFilterLevel: 'block_some',
+          personGeneration: 'allow_adult',
+        },
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        timeout: 60000,
+      }
+    );
+
+    if (response.data?.predictions?.[0]?.bytesBase64Encoded) {
+      const base64Image = response.data.predictions[0].bytesBase64Encoded;
+      const imageUrl = `data:image/png;base64,${base64Image}`;
+
+      console.log(`[Gemini] SUCCESS with ${model}`);
+      return {
+        imageUrl,
+        success: true,
+      };
+    }
+
+    console.log(`[Gemini] ${model} returned no image data`);
+    return null;
+  } catch (error: any) {
+    console.log(`[Gemini] ${model} failed:`, error.response?.status, error.message);
+    return null;
+  }
+};
 
 export const generateCharacterImage = async (
   characterId: string,
@@ -82,84 +193,31 @@ export const generateCharacterImage = async (
     };
   }
 
-  try {
-    console.log('[Gemini] Making API request for image generation...');
+  // Try each model in sequence until one works
+  for (const model of IMAGE_GENERATION_MODELS) {
+    let result: ImageGenerationResult | null = null;
 
-    // Using Gemini's Imagen API (imagen-3.0-generate-002)
-    const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${GEMINI_API_KEY}`,
-      {
-        instances: [
-          {
-            prompt: prompt,
-          },
-        ],
-        parameters: {
-          sampleCount: 1,
-          aspectRatio: '1:1',
-          safetyFilterLevel: 'block_some',
-          personGeneration: 'allow_adult',
-        },
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-    console.log('[Gemini] API response received');
-
-    if (response.data?.predictions?.[0]?.bytesBase64Encoded) {
-      const base64Image = response.data.predictions[0].bytesBase64Encoded;
-      const imageUrl = `data:image/png;base64,${base64Image}`;
-
-      // Cache the result
-      imageCache[characterId] = imageUrl;
-
-      console.log('[Gemini] SUCCESS - Image generated for:', characterId);
-      return {
-        imageUrl,
-        success: true,
-      };
+    // Use generateContent API for Gemini models, predict API for Imagen
+    if (model.includes('imagen')) {
+      result = await tryImagenAPI(model, prompt);
     } else {
-      console.log('[Gemini] ERROR: Unexpected response format');
-      return {
-        imageUrl: '',
-        success: false,
-        error: 'Unexpected response format from Gemini API',
-      };
-    }
-  } catch (error: any) {
-    console.error('[Gemini] ERROR:', error.response?.status, error.response?.data || error.message);
-
-    // Check for specific error types
-    if (error.response?.status === 400) {
-      return {
-        imageUrl: '',
-        success: false,
-        error: 'Invalid request. The image could not be generated.',
-      };
-    } else if (error.response?.status === 403) {
-      return {
-        imageUrl: '',
-        success: false,
-        error: 'API key does not have access to Imagen. Please check your Gemini API permissions.',
-      };
-    } else if (error.response?.status === 429) {
-      return {
-        imageUrl: '',
-        success: false,
-        error: 'Rate limit exceeded. Please try again later.',
-      };
+      result = await tryGenerateContentAPI(model, prompt);
     }
 
-    return {
-      imageUrl: '',
-      success: false,
-      error: error.response?.data?.error?.message || 'Failed to generate image. Please try again.',
-    };
+    if (result && result.success) {
+      // Cache the successful result
+      imageCache[characterId] = result.imageUrl;
+      return result;
+    }
   }
+
+  // All models failed
+  console.log('[Gemini] All models failed for:', characterId);
+  return {
+    imageUrl: '',
+    success: false,
+    error: 'Image generation failed. Your API key may not have access to image generation models. Please check your Gemini API permissions at https://aistudio.google.com/',
+  };
 };
 
 // Generate all character images
