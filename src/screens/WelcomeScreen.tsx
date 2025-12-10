@@ -159,26 +159,26 @@ const WelcomeScreen: React.FC = () => {
           >
             A magical kingdom of stories,{'\n'}crafted by your love.
           </Animated.Text>
-        </View>
 
-        {/* Enter Button */}
-        <Animated.View
-          style={[
-            styles.buttonContainer,
-            {
-              opacity: buttonOpacity,
-              transform: [{ translateY: buttonTranslateY }],
-            },
-          ]}
-        >
-          <MagicButton
-            title="Enter the Kingdom"
-            onPress={handleEnterKingdom}
-            variant="gold"
-            size="large"
-            icon="✨"
-          />
-        </Animated.View>
+          {/* Enter Button */}
+          <Animated.View
+            style={[
+              styles.buttonContainer,
+              {
+                opacity: buttonOpacity,
+                transform: [{ translateY: buttonTranslateY }],
+              },
+            ]}
+          >
+            <MagicButton
+              title="Enter the Kingdom"
+              onPress={handleEnterKingdom}
+              variant="gold"
+              size="large"
+              icon="✨"
+            />
+          </Animated.View>
+        </View>
 
         {/* Decorative Footer */}
         <View style={styles.footer}>
@@ -250,10 +250,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: Typography.fontSize.lg * Typography.lineHeight.relaxed,
     fontStyle: 'italic',
+    marginBottom: Spacing.xxl,
   },
   buttonContainer: {
-    position: 'absolute',
-    bottom: height * 0.18,
+    marginTop: Spacing.xl,
   },
   footer: {
     position: 'absolute',

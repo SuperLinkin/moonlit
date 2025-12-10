@@ -22,6 +22,7 @@ import { Colors, Typography, Spacing, BorderRadius, Animations } from '../utils/
 import { RootStackParamList, BackgroundTheme, BACKGROUND_THEMES, VoiceSettings } from '../types';
 import { setOpenAIKey, getOpenAIKey } from '../services/openai';
 import { setElevenLabsKey, getElevenLabsKey, setVoiceSettings } from '../services/elevenlabs';
+import { setGeminiKey, getGeminiKey } from '../services/gemini';
 import {
   saveAPIKeys,
   getAPIKeys,
@@ -39,8 +40,10 @@ const SettingsScreen: React.FC = () => {
   // API Keys state
   const [openaiKey, setOpenaiKeyState] = useState('');
   const [elevenLabsKey, setElevenLabsKeyState] = useState('');
+  const [geminiKey, setGeminiKeyState] = useState('');
   const [showOpenAIKey, setShowOpenAIKey] = useState(false);
   const [showElevenLabsKey, setShowElevenLabsKey] = useState(false);
+  const [showGeminiKey, setShowGeminiKey] = useState(false);
 
   // App settings state
   const [settings, setSettingsState] = useState<AppSettings>({
@@ -78,11 +81,13 @@ const SettingsScreen: React.FC = () => {
 
     setOpenaiKeyState(apiKeys.openai);
     setElevenLabsKeyState(apiKeys.elevenlabs);
+    setGeminiKeyState(apiKeys.gemini || '');
     setSettingsState(appSettings);
 
     // Set the keys in the service modules
     setOpenAIKey(apiKeys.openai);
     setElevenLabsKey(apiKeys.elevenlabs);
+    setGeminiKey(apiKeys.gemini || '');
 
     // Apply voice settings to ElevenLabs service
     if (appSettings.voiceSettings) {
@@ -95,11 +100,13 @@ const SettingsScreen: React.FC = () => {
       await saveAPIKeys({
         openai: openaiKey,
         elevenlabs: elevenLabsKey,
+        gemini: geminiKey,
       });
 
       // Update the service modules
       setOpenAIKey(openaiKey);
       setElevenLabsKey(elevenLabsKey);
+      setGeminiKey(geminiKey);
 
       Alert.alert('Saved', 'Your API keys have been saved securely.');
     } catch (error) {
@@ -232,6 +239,36 @@ const SettingsScreen: React.FC = () => {
               onPress={() => openLink('https://elevenlabs.io/app/settings/api-keys')}
             >
               Get your key at elevenlabs.io (optional, for voice narration)
+            </Text>
+          </View>
+
+          {/* Gemini Key */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Google Gemini API Key</Text>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.input}
+                value={geminiKey}
+                onChangeText={setGeminiKeyState}
+                placeholder="AIza..."
+                placeholderTextColor={Colors.textMuted}
+                secureTextEntry={!showGeminiKey}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <MagicButton
+                title={showGeminiKey ? '🙈' : '👁️'}
+                onPress={() => setShowGeminiKey(!showGeminiKey)}
+                variant="secondary"
+                size="small"
+                style={styles.toggleButton}
+              />
+            </View>
+            <Text
+              style={styles.inputHint}
+              onPress={() => openLink('https://aistudio.google.com/app/apikey')}
+            >
+              Get your key at aistudio.google.com (optional, for character images)
             </Text>
           </View>
 
