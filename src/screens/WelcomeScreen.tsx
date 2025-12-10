@@ -8,6 +8,7 @@ import {
   Animated,
   Dimensions,
   StatusBar,
+  Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -15,6 +16,9 @@ import AnimatedBackground from '../components/AnimatedBackground';
 import MagicButton from '../components/MagicButton';
 import { Colors, Typography, Spacing, Animations, TextShadows } from '../utils/theme';
 import { RootStackParamList } from '../types';
+
+// Import the princess photo
+const PrincessPhoto = require('../../assets/princess-photo.jpg');
 
 const { width, height } = Dimensions.get('window');
 
@@ -108,7 +112,7 @@ const WelcomeScreen: React.FC = () => {
     <AnimatedBackground intensity="high">
       <StatusBar barStyle="light-content" />
       <View style={styles.container}>
-        {/* Decorative Moon */}
+        {/* Princess Photo in Magical Circle */}
         <Animated.View
           style={[
             styles.moonContainer,
@@ -120,7 +124,15 @@ const WelcomeScreen: React.FC = () => {
         >
           <View style={styles.moon}>
             <View style={styles.moonGlow} />
-            <Text style={styles.moonEmoji}>🌙</Text>
+            <View style={styles.moonGlowInner} />
+            <View style={styles.photoFrame}>
+              <Image
+                source={PrincessPhoto}
+                style={styles.princessImage}
+                resizeMode="cover"
+              />
+            </View>
+            <View style={styles.photoRing} />
           </View>
         </Animated.View>
 
@@ -209,13 +221,37 @@ const styles = StyleSheet.create({
   },
   moonGlow: {
     position: 'absolute',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: 'rgba(200, 166, 255, 0.2)',
+  },
+  moonGlowInner: {
+    position: 'absolute',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: 'rgba(230, 216, 168, 0.15)',
+  },
+  photoFrame: {
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    overflow: 'hidden',
+    borderWidth: 3,
+    borderColor: 'rgba(230, 216, 168, 0.6)',
+  },
+  princessImage: {
+    width: '100%',
+    height: '100%',
+  },
+  photoRing: {
+    position: 'absolute',
     width: 150,
     height: 150,
     borderRadius: 75,
-    backgroundColor: 'rgba(200, 166, 255, 0.15)',
-  },
-  moonEmoji: {
-    fontSize: 80,
+    borderWidth: 2,
+    borderColor: 'rgba(200, 166, 255, 0.4)',
   },
   content: {
     alignItems: 'center',

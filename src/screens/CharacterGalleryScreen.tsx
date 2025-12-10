@@ -109,9 +109,25 @@ const FlipCard: React.FC<FlipCardProps> = ({
 
   const isRoyal = character.type === 'royal';
   const isCustom = character.isCustom || character.type === 'custom';
-  const accentColor = isRoyal ? Colors.starlight : isCustom ? '#7DD3A8' : Colors.lilac;
-  const gradientColors = isRoyal
-    ? ['rgba(230, 216, 168, 0.25)', 'rgba(200, 166, 255, 0.15)']
+  const isPratima = character.id === 'pratima';
+  const isPranav = character.id === 'pranav';
+
+  // Custom accent colors for the royal couple
+  const accentColor = isPratima
+    ? '#64B5F6' // Blue for Pratima
+    : isPranav
+    ? '#F48FB1' // Pink for Pranav
+    : isRoyal
+    ? Colors.starlight
+    : isCustom
+    ? '#7DD3A8'
+    : Colors.lilac;
+
+  // Custom gradient backgrounds for the royal couple
+  const gradientColors = isPratima
+    ? ['rgba(100, 181, 246, 0.3)', 'rgba(66, 133, 244, 0.2)'] // Blue tint for Pratima
+    : isPranav
+    ? ['rgba(244, 143, 177, 0.3)', 'rgba(233, 30, 99, 0.2)'] // Pink tint for Pranav
     : isCustom
     ? ['rgba(125, 211, 168, 0.2)', 'rgba(94, 168, 120, 0.15)']
     : ['rgba(200, 166, 255, 0.2)', 'rgba(94, 58, 168, 0.15)'];
@@ -312,12 +328,23 @@ const CharacterGalleryScreen: React.FC = () => {
     setHasApiKey(!!apiKey);
 
     // Load any cached images
+    let hasAllCached = true;
     CHARACTERS.forEach(character => {
       const cached = getCachedImage(character.id);
       if (cached) {
         setGeneratedImages(prev => ({ ...prev, [character.id]: cached }));
+      } else {
+        hasAllCached = false;
       }
     });
+
+    // Auto-generate images if API key is configured and not all cached
+    if (apiKey && !hasAllCached) {
+      // Start generating images automatically with a small delay
+      setTimeout(() => {
+        autoGenerateAllImages();
+      }, 1000);
+    }
 
     // Animate header
     Animated.timing(headerAnim, {
@@ -326,6 +353,18 @@ const CharacterGalleryScreen: React.FC = () => {
       useNativeDriver: true,
     }).start();
   }, []);
+
+  // Auto-generate all character images sequentially
+  const autoGenerateAllImages = async () => {
+    for (const character of CHARACTERS) {
+      const cached = getCachedImage(character.id);
+      if (!cached) {
+        await handleGenerateImage(character.id);
+        // Small delay between generations
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+  };
 
   const handleGenerateImage = async (characterId: string) => {
     if (generatingIds.has(characterId)) return;

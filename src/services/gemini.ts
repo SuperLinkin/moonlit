@@ -16,19 +16,23 @@ export interface ImageGenerationResult {
   error?: string;
 }
 
-// Character image prompts for realistic, romantic fairytale style
+// Character image prompts - Anime/Manga style
+// Pratima & Pranav are the heroes (romantic couple)
+// Lanka, Jinal, Pavani, Ramaya are the chaotic court villains/antagonists
 const CHARACTER_PROMPTS: Record<string, string> = {
-  pratima: `A beautiful Indian queen with warm brown skin, elegant long black hair adorned with delicate gold jewelry and a jeweled tiara. She has kind, expressive dark eyes with a gentle smile. Wearing a royal lavender and gold saree with intricate embroidery. Soft moonlit lighting, dreamy romantic atmosphere, portrait style, ethereal and magical, fantasy art, digital painting, highly detailed, soft focus background with sparkles`,
+  // HEROES - The Royal Couple
+  pratima: `Beautiful Indian princess anime girl, long flowing black hair open and free, big expressive dark eyes with sparkles, cute modern outfit with traditional Indian jewelry accents, a tiny adorable cat companion sitting near her shoulder, soft blue-tinted dreamy background with sparkles and stars, Japanese manga art style, highly detailed anime illustration, soft shading, beautiful lighting, shoujo manga aesthetic, romantic and ethereal mood, Studio Ghibli inspired, protagonist heroine vibes`,
 
-  pranav: `A handsome Indian prince with warm brown skin, well-groomed dark hair, and gentle brown eyes full of love. He wears a royal purple sherwani with gold embroidery and a small crown. Soft moonlit lighting, dreamy romantic atmosphere, portrait style, ethereal and magical, fantasy art, digital painting, highly detailed, soft focus background with sparkles`,
+  pranav: `Handsome Indian prince anime boy, charming smile, well-styled dark hair, warm brown eyes full of love, wearing a stylish royal outfit with gold accents, confident and gentle expression, soft pink-tinted dreamy background with sparkles and hearts, Japanese manga art style, highly detailed anime illustration, soft shading, beautiful lighting, shoujo manga aesthetic, romantic and dreamy mood, bishounen style, heroic prince protagonist`,
 
-  lanka: `A comedic fantasy fog-ogre knight with greenish-gray skin, wearing comically oversized ornate armor. He has a proud, overconfident expression despite looking slightly ridiculous. Misty fog swirls around him. Whimsical fantasy art style, humorous character portrait, soft magical lighting, digital painting`,
+  // VILLAINS - The Chaotic Court
+  lanka: `Villainous fog-ogre knight anime antagonist, greenish-gray skin with sinister grin, wearing dark menacing samurai-style armor with spikes, proud overconfident evil expression, glowing red eyes, dark misty fog and shadows swirling around him, dramatic villain pose, Japanese manga art style, anime illustration, dark fantasy villain aesthetic, intimidating but comedic villain design, purple and black color scheme background`,
 
-  jinal: `A mystical parrot witch with vibrant green and red feathers, wearing a tiny witch hat and small spectacles. She has an expressive, dramatic look with feathers ruffled in mid-gossip. Perched on a magical crystal ball. Whimsical fantasy art, colorful, magical atmosphere, digital painting, humorous character portrait`,
+  jinal: `Mischievous parrot witch anime villain, anthropomorphic parrot girl with wild vibrant green and red feather hair, wearing a dark witch hat with a sinister smile, scheming gossipy expression with narrowed eyes, perched near a glowing crystal ball showing dark magic, colorful but ominous magical sparkles, Japanese manga art style, anime illustration, dark magical girl villain aesthetic, cunning and dramatic villain design`,
 
-  pavani: `A beautiful weeping willow spirit - a translucent feminine figure made of flowing willow branches and leaves, with glowing tear-drop shaped lights around her. Her expression is dramatically sad but in a comedic, over-the-top way. Ethereal forest setting, magical atmosphere, fantasy digital art, soft green and blue lighting`,
+  pavani: `Ghostly weeping willow spirit anime villain, pale translucent ethereal figure with flowing dark green hair like willow branches, haunting glowing tear-drop lights floating around her, dramatically melancholic but menacing expression, eerie forest spirit aesthetic with dark undertones, Japanese manga art style, anime illustration, soft green and ghostly blue ethereal lighting, dark fantasy anime aesthetic, beautiful but sinister yokai villain`,
 
-  ramaya: `A scholarly character - an elderly figure with wise but comically proud expression, wearing academic robes covered in useless magical symbols. Holding a glowing scroll that says nothing important. Surrounded by floating books. Fantasy library setting, warm candlelight, whimsical academic style, digital painting`,
+  ramaya: `Sinister scholarly wizard anime villain, elderly figure with cunning proud expression, wearing dark elaborate academic robes covered in forbidden magical symbols, holding a glowing scroll with dark magic, surrounded by floating ancient tomes and shadows, dim candlelit library with ominous lighting, Japanese manga art style, anime illustration, dark academic villain aesthetic, wise but evil sorcerer design`,
 };
 
 // Cache for generated images
@@ -64,9 +68,9 @@ export const generateCharacterImage = async (
   // Use custom prompt if provided, otherwise look up in CHARACTER_PROMPTS
   let prompt = customPrompt || CHARACTER_PROMPTS[characterId];
 
-  // If custom prompt is provided but doesn't have style info, add it
-  if (customPrompt && !customPrompt.includes('fantasy art')) {
-    prompt = `${customPrompt}. Soft moonlit lighting, dreamy romantic atmosphere, portrait style, ethereal and magical, fantasy art, digital painting, highly detailed`;
+  // If custom prompt is provided but doesn't have style info, add anime style
+  if (customPrompt && !customPrompt.includes('anime') && !customPrompt.includes('manga')) {
+    prompt = `${customPrompt}. Japanese manga art style, anime illustration, soft shading, beautiful lighting, dreamy romantic atmosphere, highly detailed anime character design`;
   }
 
   if (!prompt) {
