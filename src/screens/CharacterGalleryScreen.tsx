@@ -148,62 +148,98 @@ const FlipCard: React.FC<FlipCardProps> = ({
         onPress={handleFlip}
         style={styles.flipCardTouchable}
       >
-        {/* Front of Card - Image/Emoji */}
+        {/* Front of Card - Full Image or Gradient with Emoji */}
         <Animated.View style={[styles.flipCardFace, styles.flipCardFront, frontAnimatedStyle]}>
-          <LinearGradient
-            colors={gradientColors as any}
-            style={styles.cardGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            {/* Type Badge */}
-            <View style={[styles.typeBadge, { backgroundColor: `${accentColor}30` }]}>
-              <Text style={[styles.typeBadgeText, { color: accentColor }]}>
-                {isRoyal ? '👑' : isCustom ? '🌟' : '✨'}
-              </Text>
-            </View>
-
-            {/* Theme Song Badge */}
-            {character.themeSong && (
-              <View style={[styles.themeBadge, { backgroundColor: `${accentColor}30` }]}>
-                <Text style={styles.themeBadgeText}>🎵</Text>
+          {generatedImage ? (
+            // Full card image when generated
+            <View style={styles.fullCardImageContainer}>
+              <Image
+                source={{ uri: generatedImage }}
+                style={styles.fullCardImage}
+                resizeMode="cover"
+              />
+              {/* Overlay gradient for text readability */}
+              <LinearGradient
+                colors={['transparent', 'rgba(0, 0, 0, 0.7)']}
+                style={styles.imageOverlay}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 0, y: 1 }}
+              />
+              {/* Type Badge */}
+              <View style={[styles.typeBadge, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+                <Text style={[styles.typeBadgeText, { color: '#fff' }]}>
+                  {isRoyal ? '👑' : isCustom ? '🌟' : '✨'}
+                </Text>
               </View>
-            )}
-
-            {/* Character Image or Emoji */}
-            <View style={styles.imageWrapper}>
-              {generatedImage ? (
-                <Image
-                  source={{ uri: generatedImage }}
-                  style={styles.characterImage}
-                  resizeMode="cover"
-                />
-              ) : isGenerating ? (
-                <View style={styles.loadingWrapper}>
-                  <ActivityIndicator size="large" color={accentColor} />
-                  <Text style={styles.loadingText}>Creating...</Text>
-                </View>
-              ) : (
-                <View style={styles.emojiWrapper}>
-                  <Text style={styles.emoji}>{character.emoji}</Text>
+              {/* Theme Song Badge */}
+              {character.themeSong && (
+                <View style={[styles.themeBadge, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+                  <Text style={styles.themeBadgeText}>🎵</Text>
                 </View>
               )}
+              {/* Character Name overlay at bottom */}
+              <View style={styles.imageNameOverlay}>
+                <Text style={styles.imageOverlayName} numberOfLines={1}>
+                  {character.name}
+                </Text>
+                <Text style={[styles.imageOverlayTitle, { color: accentColor }]} numberOfLines={1}>
+                  {character.title}
+                </Text>
+              </View>
+              {/* Tap hint */}
+              <Text style={[styles.tapHint, styles.tapHintOnImage]}>Tap to reveal</Text>
             </View>
+          ) : (
+            // Gradient with emoji when no image
+            <LinearGradient
+              colors={gradientColors as any}
+              style={styles.cardGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              {/* Type Badge */}
+              <View style={[styles.typeBadge, { backgroundColor: `${accentColor}30` }]}>
+                <Text style={[styles.typeBadgeText, { color: accentColor }]}>
+                  {isRoyal ? '👑' : isCustom ? '🌟' : '✨'}
+                </Text>
+              </View>
 
-            {/* Character Name */}
-            <Text style={styles.frontName} numberOfLines={1}>
-              {character.name}
-            </Text>
-            <Text style={[styles.frontTitle, { color: accentColor }]} numberOfLines={1}>
-              {character.title}
-            </Text>
+              {/* Theme Song Badge */}
+              {character.themeSong && (
+                <View style={[styles.themeBadge, { backgroundColor: `${accentColor}30` }]}>
+                  <Text style={styles.themeBadgeText}>🎵</Text>
+                </View>
+              )}
 
-            {/* Tap hint */}
-            <Text style={styles.tapHint}>Tap to reveal</Text>
+              {/* Loading or Emoji */}
+              <View style={styles.imageWrapper}>
+                {isGenerating ? (
+                  <View style={styles.loadingWrapper}>
+                    <ActivityIndicator size="large" color={accentColor} />
+                    <Text style={styles.loadingText}>Creating...</Text>
+                  </View>
+                ) : (
+                  <View style={styles.emojiWrapper}>
+                    <Text style={styles.emoji}>{character.emoji}</Text>
+                  </View>
+                )}
+              </View>
 
-            {/* Decorative glow for royal */}
-            {isRoyal && <View style={styles.royalGlow} />}
-          </LinearGradient>
+              {/* Character Name */}
+              <Text style={styles.frontName} numberOfLines={1}>
+                {character.name}
+              </Text>
+              <Text style={[styles.frontTitle, { color: accentColor }]} numberOfLines={1}>
+                {character.title}
+              </Text>
+
+              {/* Tap hint */}
+              <Text style={styles.tapHint}>Tap to reveal</Text>
+
+              {/* Decorative glow for royal */}
+              {isRoyal && <View style={styles.royalGlow} />}
+            </LinearGradient>
+          )}
         </Animated.View>
 
         {/* Back of Card - Details */}
@@ -797,6 +833,53 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: Colors.textMuted,
     opacity: 0.6,
+  },
+  tapHintOnImage: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    opacity: 1,
+  },
+  fullCardImageContainer: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    borderRadius: BorderRadius.lg,
+    overflow: 'hidden',
+  },
+  fullCardImage: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+  },
+  imageOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+  },
+  imageNameOverlay: {
+    position: 'absolute',
+    bottom: Spacing.lg + 10,
+    left: Spacing.sm,
+    right: Spacing.sm,
+    alignItems: 'center',
+  },
+  imageOverlayName: {
+    fontSize: Typography.fontSize.md,
+    fontWeight: '700',
+    color: '#fff',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  imageOverlayTitle: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: '500',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   royalGlow: {
     position: 'absolute',
