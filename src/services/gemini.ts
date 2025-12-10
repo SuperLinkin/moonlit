@@ -16,12 +16,8 @@ export interface ImageGenerationResult {
   error?: string;
 }
 
-// Models to try in order of preference for image generation
-const IMAGE_GENERATION_MODELS = [
-  'gemini-2.0-flash-preview-image-generation', // Newer image generation model
-  'gemini-2.0-flash-exp',                       // Experimental with image support
-  'imagen-3.0-generate-002',                    // Imagen 3 (requires special access)
-];
+// Primary model for image generation - gemini-2.0-flash-exp supports image output
+const IMAGE_GENERATION_MODEL = 'gemini-2.0-flash-exp';
 
 // Character image prompts - Anime/Manga style
 // Pratima & Pranav are the heroes (romantic couple)
@@ -45,108 +41,91 @@ const CHARACTER_PROMPTS: Record<string, string> = {
 // Cache for generated images
 const imageCache: Record<string, string> = {};
 
-// Try to generate image using generateContent API (for Gemini 2.0 models)
-const tryGenerateContentAPI = async (model: string, prompt: string): Promise<ImageGenerationResult | null> => {
-  try {
-    console.log(`[Gemini] Trying ${model} with generateContent API...`);
+// Helper to wait
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-    const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        contents: [
-          {
-            parts: [
-              {
-                text: `Generate an anime-style character portrait image: ${prompt}`,
-              },
-            ],
+// Try to generate image with retry logic for rate limits
+const tryGenerateWithRetry = async (
+  prompt: string,
+  maxRetries: number = 3
+): Promise<ImageGenerationResult | null> => {
+  let lastError: any = null;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      console.log(`[Gemini] Attempt ${attempt + 1}/${maxRetries} for image generation...`);
+
+      const response = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/${IMAGE_GENERATION_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          contents: [
+            {
+              parts: [
+                {
+                  text: `Generate an anime-style character portrait image: ${prompt}`,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            responseModalities: ['TEXT', 'IMAGE'],
           },
-        ],
-        generationConfig: {
-          responseModalities: ['TEXT', 'IMAGE'],
         },
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        timeout: 60000, // 60 second timeout for image generation
-      }
-    );
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          timeout: 90000, // 90 second timeout for image generation
+        }
+      );
 
-    console.log(`[Gemini] ${model} response received`);
+      console.log('[Gemini] Response received');
 
-    // Parse the response - look for inline image data
-    const candidates = response.data?.candidates;
-    if (candidates && candidates[0]?.content?.parts) {
-      for (const part of candidates[0].content.parts) {
-        if (part.inlineData?.mimeType?.startsWith('image/')) {
-          const base64Image = part.inlineData.data;
-          const mimeType = part.inlineData.mimeType;
-          const imageUrl = `data:${mimeType};base64,${base64Image}`;
+      // Parse the response - look for inline image data
+      const candidates = response.data?.candidates;
+      if (candidates && candidates[0]?.content?.parts) {
+        for (const part of candidates[0].content.parts) {
+          if (part.inlineData?.mimeType?.startsWith('image/')) {
+            const base64Image = part.inlineData.data;
+            const mimeType = part.inlineData.mimeType;
+            const imageUrl = `data:${mimeType};base64,${base64Image}`;
 
-          console.log(`[Gemini] SUCCESS with ${model}`);
-          return {
-            imageUrl,
-            success: true,
-          };
+            console.log('[Gemini] SUCCESS - Image generated!');
+            return {
+              imageUrl,
+              success: true,
+            };
+          }
         }
       }
-    }
 
-    console.log(`[Gemini] ${model} returned no image data`);
-    return null;
-  } catch (error: any) {
-    console.log(`[Gemini] ${model} failed:`, error.response?.status, error.message);
-    return null;
-  }
-};
+      // No image in response
+      console.log('[Gemini] Response had no image data');
+      return null;
 
-// Try to generate image using Imagen predict API
-const tryImagenAPI = async (model: string, prompt: string): Promise<ImageGenerationResult | null> => {
-  try {
-    console.log(`[Gemini] Trying ${model} with predict API...`);
+    } catch (error: any) {
+      lastError = error;
+      const status = error.response?.status;
 
-    const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:predict?key=${GEMINI_API_KEY}`,
-      {
-        instances: [
-          {
-            prompt: prompt,
-          },
-        ],
-        parameters: {
-          sampleCount: 1,
-          aspectRatio: '1:1',
-          safetyFilterLevel: 'block_some',
-          personGeneration: 'allow_adult',
-        },
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        timeout: 60000,
+      console.log(`[Gemini] Request failed with status ${status}:`, error.message);
+
+      // If rate limited, wait and retry with exponential backoff
+      if (status === 429) {
+        const waitTime = Math.pow(2, attempt) * 5000; // 5s, 10s, 20s
+        console.log(`[Gemini] Rate limited. Waiting ${waitTime / 1000}s before retry...`);
+        await delay(waitTime);
+        continue;
       }
-    );
 
-    if (response.data?.predictions?.[0]?.bytesBase64Encoded) {
-      const base64Image = response.data.predictions[0].bytesBase64Encoded;
-      const imageUrl = `data:image/png;base64,${base64Image}`;
-
-      console.log(`[Gemini] SUCCESS with ${model}`);
-      return {
-        imageUrl,
-        success: true,
-      };
+      // For other errors, don't retry
+      break;
     }
-
-    console.log(`[Gemini] ${model} returned no image data`);
-    return null;
-  } catch (error: any) {
-    console.log(`[Gemini] ${model} failed:`, error.response?.status, error.message);
-    return null;
   }
+
+  // All retries failed
+  const errorMessage = lastError?.response?.data?.error?.message || lastError?.message || 'Unknown error';
+  console.log('[Gemini] All retries failed:', errorMessage);
+  return null;
 };
 
 export const generateCharacterImage = async (
@@ -193,34 +172,25 @@ export const generateCharacterImage = async (
     };
   }
 
-  // Try each model in sequence until one works
-  for (const model of IMAGE_GENERATION_MODELS) {
-    let result: ImageGenerationResult | null = null;
+  // Try to generate with retries
+  const result = await tryGenerateWithRetry(prompt);
 
-    // Use generateContent API for Gemini models, predict API for Imagen
-    if (model.includes('imagen')) {
-      result = await tryImagenAPI(model, prompt);
-    } else {
-      result = await tryGenerateContentAPI(model, prompt);
-    }
-
-    if (result && result.success) {
-      // Cache the successful result
-      imageCache[characterId] = result.imageUrl;
-      return result;
-    }
+  if (result && result.success) {
+    // Cache the successful result
+    imageCache[characterId] = result.imageUrl;
+    return result;
   }
 
-  // All models failed
-  console.log('[Gemini] All models failed for:', characterId);
+  // Generation failed
+  console.log('[Gemini] Image generation failed for:', characterId);
   return {
     imageUrl: '',
     success: false,
-    error: 'Image generation failed. Your API key may not have access to image generation models. Please check your Gemini API permissions at https://aistudio.google.com/',
+    error: 'Image generation failed. The API may be rate limited or the model may not support image generation. Please try again in a moment.',
   };
 };
 
-// Generate all character images
+// Generate all character images with proper spacing to avoid rate limits
 export const generateAllCharacterImages = async (
   characterIds: string[],
   onProgress?: (completed: number, total: number) => void
@@ -232,9 +202,9 @@ export const generateAllCharacterImages = async (
     results[characterId] = await generateCharacterImage(characterId);
     onProgress?.(i + 1, characterIds.length);
 
-    // Small delay between requests to avoid rate limiting
+    // Longer delay between requests to avoid rate limiting (3 seconds)
     if (i < characterIds.length - 1) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await delay(3000);
     }
   }
 

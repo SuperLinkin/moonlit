@@ -354,14 +354,14 @@ const CharacterGalleryScreen: React.FC = () => {
     }).start();
   }, []);
 
-  // Auto-generate all character images sequentially
+  // Auto-generate all character images sequentially with proper delays
   const autoGenerateAllImages = async () => {
     for (const character of CHARACTERS) {
       const cached = getCachedImage(character.id);
       if (!cached) {
         await handleGenerateImage(character.id);
-        // Small delay between generations
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Longer delay between generations to avoid rate limiting (5 seconds)
+        await new Promise(resolve => setTimeout(resolve, 5000));
       }
     }
   };
