@@ -1,6 +1,6 @@
 // 🌙 Moonlit Tales - Local Storage Service
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Story, StorySettings, VoiceSettings, BackgroundTheme } from '../types';
+import { Story, StorySettings, VoiceSettings, BackgroundTheme, Character } from '../types';
 
 const STORAGE_KEYS = {
   STORIES: '@moonlit_stories',
@@ -8,6 +8,7 @@ const STORAGE_KEYS = {
   SETTINGS: '@moonlit_settings',
   API_KEYS: '@moonlit_api_keys',
   LAST_MODE: '@moonlit_last_mode',
+  CUSTOM_CHARACTERS: '@moonlit_custom_characters',
 };
 
 // Story Storage
@@ -105,6 +106,7 @@ export const getFavoriteStories = async (): Promise<Story[]> => {
 export interface APIKeys {
   openai: string;
   elevenlabs: string;
+  gemini: string;
 }
 
 export const saveAPIKeys = async (keys: APIKeys): Promise<void> => {
@@ -122,10 +124,10 @@ export const getAPIKeys = async (): Promise<APIKeys> => {
     if (keysJson) {
       return JSON.parse(keysJson);
     }
-    return { openai: '', elevenlabs: '' };
+    return { openai: '', elevenlabs: '', gemini: '' };
   } catch (error) {
     console.error('Error getting API keys:', error);
-    return { openai: '', elevenlabs: '' };
+    return { openai: '', elevenlabs: '', gemini: '' };
   }
 };
 
@@ -216,9 +218,65 @@ export const clearAllData = async (): Promise<void> => {
       STORAGE_KEYS.FAVORITES,
       STORAGE_KEYS.SETTINGS,
       STORAGE_KEYS.LAST_MODE,
+      STORAGE_KEYS.CUSTOM_CHARACTERS,
     ]);
   } catch (error) {
     console.error('Error clearing data:', error);
     throw error;
   }
+};
+
+// Custom Characters Storage
+export const saveCustomCharacter = async (character: Character): Promise<void> => {
+  try {
+    const existingCharacters = await getCustomCharacters();
+    const updatedCharacters = [...existingCharacters, character];
+    await AsyncStorage.setItem(STORAGE_KEYS.CUSTOM_CHARACTERS, JSON.stringify(updatedCharacters));
+  } catch (error) {
+    console.error('Error saving custom character:', error);
+    throw error;
+  }
+};
+
+export const getCustomCharacters = async (): Promise<Character[]> => {
+  try {
+    const charactersJson = await AsyncStorage.getItem(STORAGE_KEYS.CUSTOM_CHARACTERS);
+    if (charactersJson) {
+      return JSON.parse(charactersJson);
+    }
+    return [];
+  } catch (error) {
+    console.error('Error getting custom characters:', error);
+    return [];
+  }
+};
+
+export const updateCustomCharacter = async (id: string, updates: Partial<Character>): Promise<void> => {
+  try {
+    const characters = await getCustomCharacters();
+    const index = characters.findIndex((char) => char.id === id);
+    if (index !== -1) {
+      characters[index] = { ...characters[index], ...updates };
+      await AsyncStorage.setItem(STORAGE_KEYS.CUSTOM_CHARACTERS, JSON.stringify(characters));
+    }
+  } catch (error) {
+    console.error('Error updating custom character:', error);
+    throw error;
+  }
+};
+
+export const deleteCustomCharacter = async (id: string): Promise<void> => {
+  try {
+    const characters = await getCustomCharacters();
+    const filteredCharacters = characters.filter((char) => char.id !== id);
+    await AsyncStorage.setItem(STORAGE_KEYS.CUSTOM_CHARACTERS, JSON.stringify(filteredCharacters));
+  } catch (error) {
+    console.error('Error deleting custom character:', error);
+    throw error;
+  }
+};
+
+// Generate unique character ID
+export const generateCharacterId = (): string => {
+  return `char_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 };

@@ -34,8 +34,14 @@ export interface Character {
   title: string;
   description: string;
   emoji: string;
-  type: 'royal' | 'chaotic';
+  type: 'royal' | 'chaotic' | 'custom';
   personality?: string;
+  themeSong?: {
+    description: string; // User's description of the music
+    audioUrl?: string;   // Generated audio URL
+  };
+  isCustom?: boolean;    // Flag for user-created characters
+  imagePrompt?: string;  // Custom prompt for AI image generation
 }
 
 export interface AudioTrack {
