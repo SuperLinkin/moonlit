@@ -23,8 +23,8 @@ import MagicButton from '../components/MagicButton';
 import { Colors, Typography, Spacing, BorderRadius, Animations } from '../utils/theme';
 import { RootStackParamList, CHARACTERS, Character } from '../types';
 import { generateCharacterImage, getCachedImage } from '../services/gemini';
-import { getOpenAIKey } from '../services/openai';
-import { getCustomCharacters, deleteCustomCharacter } from '../services/storage';
+import { getOpenAIKey, setOpenAIKey } from '../services/openai';
+import { getCustomCharacters, deleteCustomCharacter, getAPIKeys } from '../services/storage';
 
 const { width } = Dimensions.get('window');
 const CARD_SIZE = (width - Spacing.lg * 3) / 2; // Two cards per row with gap
@@ -324,29 +324,34 @@ const CharacterGalleryScreen: React.FC = () => {
   );
 
   useEffect(() => {
-    // Check if OpenAI API key is configured (used for DALL-E image generation)
-    const apiKey = getOpenAIKey();
-    setHasApiKey(!!apiKey);
+    const initializeScreen = async () => {
+      // Load API keys from storage (falls back to env vars)
+      const apiKeys = await getAPIKeys();
+      console.log('[CharacterGallery] Loaded API keys from storage:', {
+        openai: apiKeys.openai ? `Found (${apiKeys.openai.substring(0, 10)}...)` : 'NOT FOUND',
+      });
 
-    // Load any cached images
-    let hasAllCached = true;
-    CHARACTERS.forEach(character => {
-      const cached = getCachedImage(character.id);
-      if (cached) {
-        setGeneratedImages(prev => ({ ...prev, [character.id]: cached }));
-      } else {
-        hasAllCached = false;
+      // Set the OpenAI key in the service module so it's available for image generation
+      if (apiKeys.openai) {
+        setOpenAIKey(apiKeys.openai);
       }
-    });
 
-    // NOTE: Auto-generation disabled to avoid rate limiting
-    // Users can manually click "Portrait" button on each character card
-    // or use the "✨ Portraits" button to generate all at once
-    // if (apiKey && !hasAllCached) {
-    //   setTimeout(() => {
-    //     autoGenerateAllImages();
-    //   }, 1000);
-    // }
+      // Check if OpenAI API key is configured (used for DALL-E image generation)
+      const apiKey = getOpenAIKey();
+      console.log('[CharacterGallery] OpenAI API key check:', apiKey ? `Found (${apiKey.substring(0, 10)}...)` : 'NOT FOUND');
+      console.log('[CharacterGallery] Setting hasApiKey to:', !!apiKey);
+      setHasApiKey(!!apiKey);
+
+      // Load any cached images
+      CHARACTERS.forEach(character => {
+        const cached = getCachedImage(character.id);
+        if (cached) {
+          setGeneratedImages(prev => ({ ...prev, [character.id]: cached }));
+        }
+      });
+    };
+
+    initializeScreen();
 
     // Animate header
     Animated.timing(headerAnim, {
@@ -369,21 +374,31 @@ const CharacterGalleryScreen: React.FC = () => {
   };
 
   const handleGenerateImage = async (characterId: string) => {
-    if (generatingIds.has(characterId)) return;
+    console.log('[CharacterGallery] handleGenerateImage called for:', characterId);
+
+    if (generatingIds.has(characterId)) {
+      console.log('[CharacterGallery] Already generating for:', characterId);
+      return;
+    }
 
     setGeneratingIds(prev => new Set(prev).add(characterId));
+    console.log('[CharacterGallery] Starting generation for:', characterId);
 
     try {
       // Check if this is a custom character with a custom image prompt
       const customChar = customCharacters.find(c => c.id === characterId);
       const customPrompt = customChar?.imagePrompt;
 
+      console.log('[CharacterGallery] Calling generateCharacterImage...');
       const result = await generateCharacterImage(characterId, false, customPrompt);
+      console.log('[CharacterGallery] Generation result:', result.success ? 'SUCCESS' : `FAILED: ${result.error}`);
+
       if (result.success && result.imageUrl) {
         setGeneratedImages(prev => ({ ...prev, [characterId]: result.imageUrl }));
+        console.log('[CharacterGallery] Image set for:', characterId);
       }
     } catch (error) {
-      console.error('Error generating image:', error);
+      console.error('[CharacterGallery] Error generating image:', error);
     } finally {
       setGeneratingIds(prev => {
         const newSet = new Set(prev);
@@ -394,9 +409,13 @@ const CharacterGalleryScreen: React.FC = () => {
   };
 
   const handleGenerateAll = async () => {
+    console.log('[CharacterGallery] handleGenerateAll called, hasApiKey:', hasApiKey);
     for (const character of CHARACTERS) {
       if (!generatedImages[character.id] && !generatingIds.has(character.id)) {
+        console.log('[CharacterGallery] Generating for character:', character.id);
         await handleGenerateImage(character.id);
+        // Add delay between requests to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
   };

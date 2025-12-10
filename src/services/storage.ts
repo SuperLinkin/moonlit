@@ -122,12 +122,28 @@ export const getAPIKeys = async (): Promise<APIKeys> => {
   try {
     const keysJson = await AsyncStorage.getItem(STORAGE_KEYS.API_KEYS);
     if (keysJson) {
-      return JSON.parse(keysJson);
+      const savedKeys = JSON.parse(keysJson);
+      // Return saved keys, but fall back to env vars for any empty keys
+      return {
+        openai: savedKeys.openai || process.env.EXPO_PUBLIC_OPENAI_API_KEY || '',
+        elevenlabs: savedKeys.elevenlabs || process.env.EXPO_PUBLIC_ELEVENLABS_API_KEY || '',
+        gemini: savedKeys.gemini || process.env.EXPO_PUBLIC_GEMINI_API_KEY || '',
+      };
     }
-    return { openai: '', elevenlabs: '', gemini: '' };
+    // No saved keys, fall back to environment variables
+    return {
+      openai: process.env.EXPO_PUBLIC_OPENAI_API_KEY || '',
+      elevenlabs: process.env.EXPO_PUBLIC_ELEVENLABS_API_KEY || '',
+      gemini: process.env.EXPO_PUBLIC_GEMINI_API_KEY || '',
+    };
   } catch (error) {
     console.error('Error getting API keys:', error);
-    return { openai: '', elevenlabs: '', gemini: '' };
+    // Fall back to environment variables on error
+    return {
+      openai: process.env.EXPO_PUBLIC_OPENAI_API_KEY || '',
+      elevenlabs: process.env.EXPO_PUBLIC_ELEVENLABS_API_KEY || '',
+      gemini: process.env.EXPO_PUBLIC_GEMINI_API_KEY || '',
+    };
   }
 };
 

@@ -5,11 +5,19 @@ import { StoryMode, StorySettings } from '../types';
 // API configuration - reads from env or can be set manually
 let OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY || '';
 
+// Log on module load
+console.log('[OpenAI] Module loaded, env key:', process.env.EXPO_PUBLIC_OPENAI_API_KEY ? 'Present' : 'Missing');
+console.log('[OpenAI] Initial OPENAI_API_KEY:', OPENAI_API_KEY ? `Set (${OPENAI_API_KEY.substring(0, 10)}...)` : 'Empty');
+
 export const setOpenAIKey = (key: string) => {
+  console.log('[OpenAI] setOpenAIKey called with:', key ? `Key (${key.substring(0, 10)}...)` : 'Empty');
   OPENAI_API_KEY = key;
 };
 
-export const getOpenAIKey = () => OPENAI_API_KEY;
+export const getOpenAIKey = () => {
+  console.log('[OpenAI] getOpenAIKey called, returning:', OPENAI_API_KEY ? `Key (${OPENAI_API_KEY.substring(0, 10)}...)` : 'Empty');
+  return OPENAI_API_KEY;
+};
 
 // Story prompt templates based on the PRD
 const PROMPT_TEMPLATES: Record<StoryMode, string> = {
